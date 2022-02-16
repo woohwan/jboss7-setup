@@ -1,30 +1,56 @@
-# jboss7-setup  
+### jboss7-setup  
 
-1. Download JBoss EAP 7.4  
-   - 
+1. install JBoss EAP 7.4  
+   - unzip  
+    `$ unzip ./jboss-eap-7.4.0.zip -d /opt`  
+   - jboss 계정 생성  
+   `$ useradd -r -d /home/jboss jboss`  
+   - .bash_profile  수정  - 아래 추가 후 source 수행  
+    `export JBOSS_HOME=/opt/jboss`  
+   - symbolic link 생성  
+    `ln -s /opt/jboss-eap-7.4 /opt/jboss`  
+    - 권한 변경  
+    `$ chown -Rf jboss: $JBOSS_HOME`  
+    `$ chmod +x /opt/jboss/bin/*.sh`  
+
+2. standalone 구성  
+    - instance directory 생성   
+    ```  
+    $ mkdir -p $HOME/node/server1
+    $ cd $JBOSS_HOME/bin
+    $ cp onfiguration deployments  lib  $HOME/node/server1
+    ```   
+
+    - 관리자 추가  
+    jboss user로 실행  
+    `$ mkdir script`  
+    script로 디렉토리로
+    - deploy directory 변경  
+    standalon.xml에 <paths> element를 아래와 같이 추가 및 변경  
+    </extensions> 와 <management> 사이
+    ```
+    </extensions>
+    <paths>
+      <path name="deploy.dir" path="/home/admin/node/server1"/>
+    </paths>
+    <management>
+    ```
+    deployment scanner 변경
+    ```
+    <subsystem xmlns="urn:jboss:domain:deployment-scanner:2.0">
+        <deployment-scanner path="deployments" relative-to="deploy.dir" scan-interval="5000" runtime-failure-causes-rollback="${jboss.deployment.scanner.rollback.on.failure:false}"/>
+    </subsystem>
+    ```
+
+    - 정적 contents 경로 지정 (예: welcome-contents)  
+     handler 변경
+     ```
+    <handlers>
+         <file name="welcome-content" path="/home/admin/node/server1/welcome"/>
+    </handlers>
+    ```
 
 
-2. Oracle DB install 및 sample DB 생성  
-    2.1  docker image 사용  
-    https://hub.docker.com/r/gvenzl/oracle-xe
-    
-    2.2  docker run 실행  
-    `podman run -d -p 1521:1521 -e ORACLE_PASSWORD=oracle -v oracle-volume:/opt/oracle/oradata gvenzl/oracle-xe:11 --name oracle-xe-11g`
-    
-    2.3 sample user 및 table 생성
-    $ podman cp scott.sql  oracle-xe-11g:/u01/app/oracle  
-    $ podman exec -it oracle-xe-11g bash  
-    $ ls  
-    $ sqlplus / as sysdba  
-    SQL> @scott.sql  
-    SQL> conn scott/tiger  
-    SQL> select table_name from user_tables;  
-
-    2.4 sqlplus TIP (sqlplus / as sysdba)  
-    - database name 확인  
-      SQL> select name, db_unique_name from v$database;  
-    - sid 확인  
-      SQL> select instance from v$thread
 
 
 3. JBoss JDBC 구성
