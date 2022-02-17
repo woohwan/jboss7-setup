@@ -13,7 +13,13 @@
     `$ chown -Rf jboss: $JBOSS_HOME`  
     `$ chmod +x /opt/jboss/bin/*.sh`  
 
-2. standalone 구성  
+2. Install binary와 무관하게 standalone 구성  
+    변경해야 부분: module directory, deploy directory, welcome-contents (static contents) directory  
+    module directory: JBOSS_MODULEPATH 변경 ( for standalone.sh, jboss-cli.sh)  
+    ( 참고: https://access.redhat.com/solutions/195733 )  
+
+
+
     - instance directory 생성   
     ```  
     $ mkdir -p $HOME/node/server1
