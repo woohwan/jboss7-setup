@@ -1,0 +1,36 @@
+if (outcome == success) of /subsystem=datasources/data-source=OracleDS/:read-resource
+  try
+    echo remove oracle datasource OracleDS
+    /subsystem=datasources/data-source=OracleDS:remove
+  catch
+    echo removal of datasource OracleDS was failed
+  finally
+    echo reload changed configrutaion
+    reload
+  end-try
+else
+  echo datasource OracleDS was undefined
+end-if
+
+if (outcome == success) of /subsystem=ee/service=default-bindings:undefine-attribute(name=datasource)
+  echo datasource service binding successfully was removed
+end-if
+
+if (outcome == success) of /subsystem=datasources/jdbc-driver=oracle/:read-resource
+  try
+    echo remove oracle jdbc driver
+    /subsystem=datasources/jdbc-driver=oracle/:remove
+  catch
+    echo removal of jdbc driver oracle was failed
+  end-try
+else
+  echo jdbc driver oracle was undefined
+end-if
+
+try
+  echo remove module com.oracle
+  module remove --name=com.oracle --module-root-dir=/home/admin/node/modules
+  echo module com.oracle successfully was removed
+catch
+    echo check whether module com.oracle was installed or not
+end-try

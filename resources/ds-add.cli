@@ -1,14 +1,15 @@
-# 외부 module directory에 jdbc driver module 추가 (eap 7.1 이상)
-if (outcome != success) of /core-service=module-loading/:list-resource-loader-paths(module=com.oracle)
+try
+  echo add moudule oracle.com
   module add --module-root-dir=/home/admin/node/modules --name=com.oracle \
   --resources=/home/admin/resources/ojdbc8.jar \
   --dependencies=javax.api,javax.transaction.api
-else
-  echo module com.oracle already installed
-end-if
+catch
+  echo check whether module com.oracle was installed or not
+end-try
 
 # jdbc Driver 등록
 if (outcome != success) of /subsystem=datasources/jdbc-driver=oracle/:read-resource
+  echo register oracle jdbc driver
   /subsystem=datasources/jdbc-driver=oracle:add(driver-name=oracle, \
   driver-module-name=com.oracle, \
   jdbc-compliant=true, \
@@ -20,6 +21,7 @@ end-if
 
 # datasource 등록
 if (outcome != success) of /subsystem=datasources/data-source=OracleDS/:read-resource
+  echo register oracle datasource
   /subsystem=datasources/data-source=OracleDS:add(driver-name=oracle, \
   jndi-name="java:jboss/datasources/oracleDS", \
   connection-url="jdbc:oracle:thin:@172.20.2.190:1521:ORCLCDB", \
@@ -36,5 +38,5 @@ else
   echo datasource OracleDS already was registred
 end-if
 
-# server reload
-:reload
+echo datasource OracleDS connectio pool test
+/subsystem=datasources/data-source=OracleDS/:test-connection-in-pool

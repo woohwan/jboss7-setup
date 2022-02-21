@@ -1,8 +1,0 @@
-batch
-
-/subsystem=datasources/data-source=OracleDS:remove
-/subsystem=ee/service=default-bindings:undefine-attribute(name=datasource)
-/subsystem=datasources/jdbc-driver=oracle:remove
-module remove --name=com.oracle --module-root-dir=/home/admin/node/modules
-
-run-batch
