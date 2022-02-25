@@ -1,3 +1,4 @@
+# 외부 module directory에 jdbc driver module 추가 (eap 7.1 이상)
 try
   echo add moudule oracle.com
   module add --module-root-dir=/home/admin/node/modules --name=com.oracle \
