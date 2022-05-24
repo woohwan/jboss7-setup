@@ -2,29 +2,36 @@
 
 1. install JBoss EAP 7.4  
    - unzip  
-    `$ unzip ./jboss-eap-7.4.0.zip -d /opt`  
+ ```
+sudo unzip ./jboss-eap-7.4.0.zip -d /opt
+```
    - jboss 계정 생성  
-   `$ useradd -r -d /home/jboss jboss`  
+```   
+sudo useradd -r -d /home/jboss jboss
+```
    - .bash_profile  수정  - 아래 추가 후 source 수행  
-    `export JBOSS_HOME=/opt/jboss`  
-   - symbolic link 생성  
-    `ln -s /opt/jboss-eap-7.4 /opt/jboss`  
-    - 권한 변경  
-    `$ chown -Rf jboss: $JBOSS_HOME`  
-    `$ chmod +x /opt/jboss/bin/*.sh`  
+ ```  
+  echo "export JBOSS_HOME=/opt/jboss" >> ~/.bash_profile  
+  source ~/.bash_profile
+  echo $JBOSS_HOME
+ ```  
+   - symbolic link 생성  및 권한 변경  
+ ```  
+ln -s /opt/jboss-eap-7.4 /opt/jboss
+sudo chown -Rf jboss:jboss $JBOSS_HOME
+sudo chmod +x /opt/jboss/bin/*.sh
+```
 
-2. Install binary와 무관하게 standalone 구성  
+1. Install binary와 무관하게 standalone 구성  
     변경해야 부분: module directory, deploy directory, welcome-contents (static contents) directory  
     module directory: JBOSS_MODULEPATH 변경 ( for standalone.sh, jboss-cli.sh)  
     ( 참고: https://access.redhat.com/solutions/195733 )  
 
-
-
     - instance directory 생성   
     ```  
-    $ mkdir -p $HOME/node/server1
-    $ cd $JBOSS_HOME/bin
-    $ cp onfiguration deployments  lib  $HOME/node/server1
+    mkdir -p $HOME/node1
+    sudo cp  $JBOSS_HOME/standalone node1
+    sudo chown -R jboss:jboss $HOME/node1
     ```   
 
     - 관리자 추가  
@@ -59,7 +66,7 @@
 
 
 
-3. JBoss JDBC 구성
+2. JBoss JDBC 구성
     3.1 module directory 생성 및  jdbc driver upload  
     $ mkdir -p $JBOSS_HOME/modules/com/oracle/main  
     $ mv ojdbc6.jar $JBOSS_HOME/modules/com/oracle/main/.  
