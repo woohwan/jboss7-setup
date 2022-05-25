@@ -1,0 +1,409 @@
+on Amazon Linux 2
+
+sudo yum install java-1.8.0-openjdk-devel
+sudo yum install java-1.8.0-openjdk
+
+
+sudo mkdir -p /CLOUD/JBOSS
+sudo unzip jboss-eap-7.4.0.zip -d /CLOUD/JBOSS
+sudo mkdir /CLOUD/JBOSS/domains
+cd /CLOUD/JBOSS/jboss-eap-7.4
+# cp -r standalone /CLOUD/JBOSS/domains/노드명
+cp -r standalone /CLOUD/JBOSS/domains/node1
+
+1. 필요 스크립트 파일 생성
+#mkdir /CLOUD/JBOSS/domains/노드명/bin
+sudo mkdir /CLOUD/JBOSS/domains/node1/bin
+
+
+cd  /CLOUD/JBOSS/domains/node1/bin
+
+
+
+4. 필요스크립파일 생성
+1) add-user.sh
+sudo bash -c 'cat <<EOF > add-user.sh
+#!/bin/sh
+ 
+. ./env.sh
+JAVA_OPTS="$JAVA_OPTS -Djboss.server.config.user.dir=$DOMAIN_BASE/$SERVER_NAME/configuration"
+$ JBOSS_HOME/bin/add-user.sh $@
+EOF'
+
+
+2) dump.sh
+sudo bash -c 'cat <<EOF > dump.sh
+#!/bin/sh
+ 
+. ./env.sh
+ 
+for count in 1 2 3 4 5; do
+     echo "Thread Dump : $count"
+     for i in `ps -ef | grep java | grep "SERVER=$SERVER_NAME " | awk '{print $2}'`; do
+     echo "+kill -3 $i"
+     kill -3 $i
+     echo "sleep 1 sec"
+     sleep 1
+     done
+     sleep 3
+done
+EOF'
+
+3) enc-password.sh
+#!/bin/sh
+ 
+. ./env.sh
+ 
+export CLASSPATH=$JBOSS_HOME/modules/org/picketbox/main/picketbox-4.0.14.Final-redhat-2.jar:$JBOSS_HOME/modules/org/jboss/logging/main/jboss-logging-3.1.2.GA-redhat-1.jar:$CLASSPATH
+ 
+echo "password:$1"
+ 
+java org.picketbox.datasource.security.SecureIdentityLoginModule $1
+
+
+4) env.properties
+org.apache.catalina.connector.URI_ENCODING=UTF-8                            # 언어 설정
+org.apache.catalina.connector.USE_BODY_ENCODING_FOR_QUERY_STRING=true
+org.apache.coyote.http11.Http11Protocol.MAX_HEADER_SIZE=8192
+org.apache.coyote.ajp.DEFAULT_CONNECTION_TIMEOUT=60000                        # 연결 시간 설정
+org.apache.coyote.http11.DEFAULT_CONNECTION_TIMEOUT=60000
+org.apache.tomcat.util.http.Parameters.MAX_COUNT=10000                        # 파라미터 최대 연결 개수 설정
+UseJK=true                                                                    # Web 서버 요청 커넥션 유지
+#jvmRoute=node10                                                            # 라우팅 노드 지정     
+
+
+5) env.sh
+#!/bin/sh
+
+DATE=`date +%Y%m%d%H%M%S`
+
+##### JBoss Directory Setup #####
+export JBOSS_HOME=/CLOUD/JBOSS/jboss-eap-7.4        # 설치된 JBOSS EAP 버전에 맞는 디렉터리 설정
+export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk        # 사용하는 JDK 버전에 맞게 설정
+export DOMAIN_BASE=/CLOUD/JBOSS/domains                # 도메인 베이스 디렉터리 설정
+export SERVER_NAME=node1                            # 생성한 노드명 설정
+export HOST_NAME=`hostname`                            # 호스트네임을 서버에 정의된 HOSTNAME으로 자동인식 처리
+
+##### Configuration File #####
+export CONFIG_FILE=standalone-ha.xml                # 환경 설정 파일 등록
+export PORT_OFFSET=0                                # 포트 OFFSET 값 등록
+export JBOSS_USER=jboss                                # jboss 유저 등록
+
+##### Bind Address #####
+export BIND_ADDR=`hostname -i`                        # 시스템에 설정된 etho0의 네트워크 IP 값을 자동으로 인식
+export MGMT_ADDR=$BIND_ADDR                            # 관리 주소 등록
+export CONTROLLER_IP=$MGMT_ADDR                        # 관리자 IP 등록
+# export CONTROLLER_IP=127.0.0.1
+let CONTROLLER_PORT=9999+$PORT_OFFSET                # 관리자 포트 값 연산
+export CONTROLLER_PORT                                # 관리자 포트 등록
+export LAUNCH_JBOSS_IN_BACKGROUND=true
+
+# Multicast IP for stndalone-ha.xml #####
+##### MIP, change Please #####
+export MULTICAST_ADDR=230.20.16.1                    # 멀티 캐스트 ip 설정(같은 클러스터간 동일값)
+export JMS_MULTICAST_ADDR=231.20.16.1                # JMS 멀티 캐스트 IP 설정(같은 클러스터간 동일값)
+export MODCLUSTER_MULTICAST_ADDR=224.20.16.100
+
+export JAVA_OPTS="$JAVA_OPTS -Djboss.default.multicast.address=$MULTICAST_ADDR"
+export JAVA_OPTS="$JAVA_OPTS -Djboss.messaging.group.address=$JMS_MULTICAST_ADDR"
+export JAVA_OPTS="$JAVA_OPTS -Djboss.modcluster.multicast.address=$MODCLUSTER_MULTICAST_ADDR"
+
+# LOG 디렉터리 위치 설정
+export LOG_HOME=/CLOUD/JBOSS/LOG/$SERVER_NAME
+#export LOG_HOME=$DOMAIN_BASE/$SERVER_NAME/log
+
+# Jboss System module and User module directory #####
+export JBOSS_MODULEPATH=$JBOSS_HOME/modules
+
+# JVM Options : Server
+export JAVA_OPTS="-server $JAVA_OPTS"
+
+# JVM Options : Memory
+export JAVA_OPTS="$JAVA_OPTS -Xms2048m -Xmx2048m -XX:MaxMetaspaceSize=512m"
+
+export JAVA_OPTS="$JAVA_OPTS -XX:+PrintGCTimeStamps"
+export JAVA_OPTS="$JAVA_OPTS -XX:+PrintGCDetails"
+export JAVA_OPTS="$JAVA_OPTS -Xloggc:$LOG_HOME/gclog/gc_$DATE.log"
+export JAVA_OPTS="$JAVA_OPTS -XX:+UseParallelGC"
+#export JAVA_OPTS="$JAVA_OPTS -XX:+UseConcMaskSweepGC"
+export JAVA_OPTS="$JAVA_OPTS -XX:+ExplicitGCInvokesConcurrent"
+export JAVA_OPTS="$JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError"                            # OOME 발생 시 힘덤프 자동 생성
+export JAVA_OPTS="$JAVA_OPTS -XX:HeapDumpPath=$LOG_HOME/gclog/java_pid_$DATE.hprof"        # 힙덤프 파일명에 생성일 추가
+
+# Linux Large Page Setting
+# export JAVA_OPTS="$JAVA_OPTS -XX:+UseLargePages"
+
+export JAVA_OPTS="$JAVA_OPTS -verbose:gc"
+export JAVA_OPTS="$JAVA_OPTS -Djava.net.preferIPv4Stack=true"
+export JAVA_OPTS="$JAVA_OPTS -Dorg.jboss.resolver.warning=true"
+export JAVA_OPTS="$JAVA_OPTS -Dsun.rmi.dgc.client.gcInterval=3600000"
+export JAVA_OPTS="$JAVA_OPTS -Dsun.rmi.dgc.server.gcInterval=3600000"
+export JAVA_OPTS="$JAVA_OPTS -Djboss.modules.system.pkgs=org.jboss.byteman"
+export JAVA_OPTS="$JAVA_OPTS -Djava.awt.headless=true"
+
+export JAVA_OPTS="$JAVA_OPTS -Djboss.server.base.dir=$DOMAIN_BASE/$SERVER_NAME"
+export JAVA_OPTS="$JAVA_OPTS -Djboss.socket.binding.port-offset=$PORT_OFFSET"
+export JAVA_OPTS="$JAVA_OPTS -Djboss.node.name=${SERVER_NAME}"
+export JAVA_OPTS="$JAVA_OPTS -Djboss.bind.address.management=$MGMT_ADDR"
+export JAVA_OPTS="$JAVA_OPTS -Djboss.bind.address=$BIND_ADDR"
+export JAVA_OPTS="$JAVA_OPTS -Dserver.mode=local"
+
+# Use log4j in application
+export JAVA_OPTS="$JAVA_OPTS -Dorg.jboss.as.logging.per-deployment=false"
+export JAVA_OPTS="$JAVA_OPTS -Djboss.server.log.dir=$LOG_HOME"
+
+echo "================================================="
+echo "JBOSS_HOME=$JBOSS_HOME"
+echo "DOMAIN_BASE=$DOMAIN_BASE"
+echo "SERVER_NAME=$SERVER_NAME"
+echo "CONFIG_FILE=$CONFIG_FILE"
+echo "BIND_ADDR=$BIND_ADDR"
+echo "PORT_OFFSET=$PORT_OFFSET"
+echo "CONTROLLER=$CONTROLLER_IP:$CONTROLLER_PORT"
+echo "jboss.node.name=${SERVER_NAME}"
+echo "================================================="
+
+#SCOUTER_OPT="-javaagent:/CLOUD/scouter/agent.java_6_7/scouter.agent.jar -Dscouter.config=/CLOUD/scouter/agent.java_6_7/conf/node01.conf"
+#export JAVA_OPTS="$JAVA_OPTS$SCOUTER_OPT"
+#export JAVA_OPTS="$JAVA_OPTS -Djboss.modules.system.pkgs=org.jboss.byteman,scouter"
+
+
+6) jboss-cli.sh
+#!/bin/sh
+ 
+. ./env.sh
+ 
+export JAVA_OPTS=" -Djava.awt.headless=false $JAVA_OPTS"
+ 
+$JBOSS_HOME/bin/jboss-cli.sh  --controller=$CONTROLLER_IP:$CONTROLLER_PORT --connect $@
+
+7) jconsole.sh
+#!/bin/sh
+ 
+. ./env.sh
+ 
+echo "================================================="
+echo " JMX URL : service:jmx:remoting-jmx://$MGMT_ADDR:$CONTROLLER_PORT"
+echo "================================================="
+
+8) jdr.sh
+#!/bin/sh
+ 
+. ./env.sh
+ 
+$JBOSS_HOME/bin/jdr.sh $@
+
+9) kill.sh
+#!/bin/sh
+ 
+. ./env.sh
+ 
+ps -ef | grep java | grep "SERVER=$SERVER_NAME " | awk {'print "kill -9 " $2'} | sh -x
+
+
+10) stop.sh
+#!/bin/sh
+
+. ./env.sh
+
+$JBOSS_HOME/bin/jboss-cli.sh --connect --controller=$CONTROLLER_IP:$CONTROLLER_PORT --command=:shutdown
+
+tail -f $LOG_HOME/server.log
+
+
+11) start.sh
+#!/bin/sh
+
+DATE=`date +%Y%m%d%H%M%S`
+
+. ./env.sh
+
+PID=`ps -ef | grep java | grep "=$SERVER_NAME" | awk '{print $2}'`
+
+echo $PID
+
+if [ -n "$PID" ]
+then
+     echo "JBoss SERVER - $SERVER_NAME is already RUNNING..."
+     exit;
+fi
+
+UNAME=`id -u -n`
+
+if [ $UNAME != "$JBOSS_USER" ]
+then
+     echo "Use $JBOSS_USER account to start JBoss SERVER -$SERVER_NAME..."
+     exit;
+fi
+
+echo $JAVA_OPTS
+
+#mv $LOG_HOME/nohup/$SERVER_NAME.out $LOG_HOME/nohup/$SERVER_NAME.out.$DATE
+#mv $LOG_HOME/gclog/gc.log $LOG_HOME/gclog/gc.log.$DATE
+
+# nohup log 이동 관련 제거, nohup log 파일명에 생성일 추가
+nohup $JBOSS_HOME/bin/standalone.sh -DSERVER=$SERVER_NAME -P=$DOMAIN_BASE/$SERVER_NAME/bin/env.properties -c $CONFIG_FILE >> $LOG_HOME/nohup/${SERVER_NAME}_${DATE}.out &
+
+#nohup $JBOSS_HOME/bin/standalone.sh -DSERVER=$SERVER_NAME -b $BIND_ADDR -u $MULTICAST_ADDR -P=$DOMAIN_BASE/$SERVER_NAME/env.properties -c $CONFIG_FILE >> $SERVER_NAME.out &
+
+if [ $1 == "enotail" ]
+then
+     echo "Starting... $SERVER_NAME"
+     exit;
+fi
+
+tail -f $LOG_HOME/server.log    # tail을 nohup 로그에서 server.log로 변경
+#tail -f $SERVER_NAME.out
+#tail -f $LOG_HOME/nohup/$SERVER_NAME.out
+
+
+12) status.sh
+#!/bin/sh
+ 
+. ./env.sh
+ 
+ps -ef | grep java | grep "SERVER=$SERVER_NAME"
+
+13) tail.sh
+#!/bin/sh
+ 
+. ./env.sh
+ 
+tail -f $LOG_HOME/server.log
+
+5. 관리자 등록
+# cd /CLOUD/JBOSS/jboss-eap-7.4/bin
+ 
+#./add-user.sh
+ 
+a) Management User (mgmt-user.properties)
+ 
+b) Application User (application-user.properties)
+ 
+(a) : a 선택 후 진행
+
+
+cp $JBOSS_HOME/standalone/configuration/mgmt* $DOMAIN_BASE/$SERVER_NAME/configuration
+
+참고: --------------------------
+Updated user 'admin' to file '/CLOUD/JBOSS/jboss-eap-7.4/standalone/configuration/mgmt-users.properties'
+Updated user 'admin' to file '/CLOUD/JBOSS/jboss-eap-7.4/domain/configuration/mgmt-users.properties'
+Updated user 'admin' with groups  to file '/CLOUD/JBOSS/jboss-eap-7.4/standalone/configuration/mgmt-groups.properties'
+Updated user 'admin' with groups  to file '/CLOUD/JBOSS/jboss-eap-7.4/domain/configuration/mgmt-groups.properties'
+---
+
+6. 로그 디렉터리 생성
+mkdir /CLOUD/JBOSS/LOG
+mkdir /CLOUD/JBOSS/LOG/노드명
+mkdir /CLOUD/JBOSS/LOG/노드명/gclog
+mkdir /CLOUD/JBOSS/LOG/노드명/nohup
+
+mkdir -p /CLOUD/JBOSS/LOG/node1/gclog
+mkdir -p /CLOUD/JBOSS/LOG/node1/nohup
+
+chown -R jboss:jboss /CLOUD/JBOSS/LOG
+sudo chown -R jboss:jboss domains/
+sudo -u jboss ./start.sh
+
+patch Using management CLI
+sudo chmod -R jboss:jboss /CLOUD/JBOSS/jboss-eap-7.4
+cp jboss-eap-7.4.4-patch.zip /CLOUD/JBOSS/domains/node1/bin
+cd /CLOUD/JBOSS/domains/node1/bin
+patch apply jboss-eap-7.4.4-patch.zip
+
+7. 보안 취약점 조치
+1) 관리자 콘솔 관리(접속 포트변경)
+# vim /CLOUD/JBOSS/domains/노드명/configuration/standalone-ha.xml
+ 
+<socket-binding name="management-http" interface="management" port="${jboss.management.http.port:9990}"/>
+ 
+==>
+ 
+<socket-binding name="management-http" interface="management" port="${jboss.management.http.port:9991}"/>
+
+2) JSP 파일 자동 로딩 금지 및 powered-by 출력 금지
+# vim /CLOUD/JBOSS/domains/노드명/configuration/standalone-ha.xml
+ 
+※ JBoss EAP 7.x
+<servlet-container name="default">
+     <jsp-config x-powered-by="false" development="false" check-interval="60"/>
+     <websockets/>
+</servlet-container>
+ 
+ 
+※ JBoss EAP 6.4.x
+<subsystem xmlns="urn:jboss:domain:web:1.5" default-virtual-server"default-host" instance-id="${jboss.node.name}" native="false">
+     <configuration>
+          <jsp-configuration development="true" check-interval=5" modification-test-interval="5" recompile-on-fail="true" x-powered-by="false"/>
+     </configuration>
+
+
+3) 패스웥드 관리
+# cd /CLOUD/JBOSS/domains/노드명/configuration
+chmod 640 mgmt-* application-*
+
+4)설정파일 디렉터리 퍼미션 변경
+chmod 700 /CLOUD/JBOSS/domains/노드명/configuration/standalone_xml_history
+
+5) 로깅 디렉터리 및 파일 권한 관리
+# vim /CLOUD/JBOSS/jboss-eap-7.2/bin/standalone.conf
+ 
+if [ "x$GC_LOG" = "x" ]; then
+     GC_LOG="false"
+else
+     echo "GC_LOG set in environment to $GC_LOG"
+fi
+ 
+# find /CLOUD/JBOSS/LOG -type f | xargs chmod 640
+# find /CLOUD/JBOSS/LOG -type d | xargs chmod 750
+
+6. 샢믚 디렉터리 삭제
+rm -rf /CLOUD/JBOSS/jboss-eap-7.2/docs/examples
+
+
+8. 데이터소스 설정
+mkdir jdbc  
+mv ojdbc8.jar jdbc/  
+datasource batch 실행   
+```  
+cat <<EOF > add-oracle-ds.cli
+module add --name=com.oracle  \
+--resources=/home/ec2-user/jdbc/ojdbc8.jar \
+--dependencies=javax.api,javax.transaction.api
+
+connect
+
+# register jdbc driver
+/subsystem=datasources/jdbc-driver=oracle:add(driver-name=oracle, \
+driver-module-name=com.oracle, \
+jdbc-compliant=true, \
+driver-class-name=oracle.jdbc.OracleDriver, \
+xa-datasource-class=oracle.jdbc.xa.client.OracleXADataSource)
+
+# register oracle ds
+/subsystem=datasources/data-source=OracleDS:add(driver-name=oracle, \
+  jndi-name="java:jboss/datasources/oracleDS", \
+  connection-url="jdbc:oracle:thin:@172.31.37.245:49161:XE", \
+  driver-name=oracle, user-name=scott, password=tiger, \
+  validate-on-match=true, \
+  valid-connection-checker-class-name="org.jboss.jca.adapters.jdbc.extensions.oracle.OracleValidConnectionChecker", \
+  exception-sorter-class-name="org.jboss.jca.adapters.jdbc.extensions.oracle.OracleExceptionSorter", \
+  min-pool-size=5, max-pool-size=10, pool-prefill=true, \
+  prepared-statements-cache-size=32, \
+  check-valid-connection-sql="select 1 from dual", \
+  background-validation=true, background-validation-millis=30000, \
+  idle-timeout-minutes=15)
+
+run-batch
+```  
+server restart: ./stop.sh & sudo -u jboss ./start.sh  
+connection 테스트  
+./jboss-cli.sh  
+] /subsystem=datasources/data-source=OracleDS:test-connection-in-pool
+
+
+
+
+
+
+
