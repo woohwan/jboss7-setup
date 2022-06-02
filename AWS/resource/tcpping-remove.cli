@@ -1,0 +1,4 @@
+ /subsystem=jgroups/channel=ee:write-attribute(name=stack,value=udp)
+ /socket-binding-group=standard-sockets/remote-destination-outbound-socket-binding=jgroups-host-a:remove
+ /socket-binding-group=standard-sockets/remote-destination-outbound-socket-binding=jgroups-host-b:remove
+ /subsystem=jgroups/stack=tcpping:remove

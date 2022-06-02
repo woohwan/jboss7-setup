@@ -57,6 +57,7 @@ chown -R jboss:jboss /JBOSS/domains/
 ```  
 ```   
 # script file  수정 후  
+# IP 하나만 연결되어야 함.
 sudo -u jboss ./start.sh
 ```  
 
