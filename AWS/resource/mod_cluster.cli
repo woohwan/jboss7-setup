@@ -1,0 +1,12 @@
+# 각 서버 instance에 맞게 수정할 것
+# disable advertising
+/subsystem=modcluster/mod-cluster-config=configuration/:write-attribute(name=advertise,value=false) 
+
+# add proxies in modcluster subsystem
+/socket-binding-group=standard-sockets/remote-destination-outbound-socket-binding=proxy1:add(host=172.31.2.106,port=6666)
+/subsystem=modcluster/proxy=default:write-attribute(name=proxies,value=[proxy1])
+
+# modify inteface IP in management, public, insecure
+/interface=management:write-attribute(name=inet-address,value="${jboss.bind.address.management:172.31.12.7}")
+/interface=public:write-attribute(name=inet-address,value="${jboss.bind.address:172.31.12.7}")
+
